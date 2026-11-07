@@ -69,12 +69,17 @@ function remTxt(){return S.pays.length<2?"":"Kalan: "+m(payRem())}
 function payBlock(){var multi=S.pays.length>1;
   return'<div class="mut" style="margin-top:10px">Ödeme</div>'+S.pays.map(function(p,i){return'<div class="row"><select style="flex:1" data-pm="'+i+'">'+payOpts(p.m)+"</select>"+(multi?'<input class="pr" type="number" min="0" step="any" data-pa="'+i+'" value="'+esc(p.a)+'" placeholder="Tutar"><button class="g" data-pf="'+i+'" title="Kalan tutarı bu satıra yaz">Kalan</button><button class="g" data-pd="'+i+'">×</button>':"")+"</div>"}).join("")+
   '<div class="row"><button class="g" id="addpay">+ Karma ödeme (ödemeyi böl)</button><span class="mut" id="rem">'+remTxt()+"</span></div>"}
+function custPick(){
+  var c=S.sc&&S.C.filter(function(x){return x.no===S.sc})[0];
+  if(c)return'<div><span class="mut">Müşteri / Cari</span><div class="row" style="border:1px solid #ccc;border-radius:8px;padding:6px 10px"><div class="n"><b>'+esc(c.ad)+'</b><small>Bakiye: '+m(c.bakiye)+'</small></div><button class="g" data-csx="1">Değiştir</button></div></div>';
+  var q=fold(S.csq||"").split(/\s+/).filter(Boolean),r=q.length&&(S.csq||"").length>1?S.C.filter(function(x){var k=fold(x.ad+" "+x.vergi);return q.every(function(w){return k.indexOf(w)>=0})}).slice(0,8):[];
+  return'<div><span class="mut">Müşteri / Cari (isteğe bağlı)</span><input id="csq" placeholder="Cari ara (ünvan veya vergi no)..." value="'+esc(S.csq||"")+'">'+r.map(function(x){return'<div class="row" data-cs2="'+esc(x.no)+'" style="cursor:pointer"><div class="n">'+esc(x.ad)+'<small>Bakiye '+m(x.bakiye)+"</small></div></div>"}).join("")+"</div>"}
 function vSale(){var c=calc();
   var res=S.q.length>1?filt(S.q).slice(0,25):[];
   var h='<div class="box"><h3>Ürün ara</h3><input id="q" placeholder="Ürün adı, marka veya kod..." value="'+esc(S.q)+'">'+
    res.map(function(p){return'<div class="row"><div class="n">'+esc(p.ad)+"<small>"+esc(p.marka)+(p.kod?" · "+esc(p.kod):"")+"</small></div>"+badge(p)+'<span class="p">'+(p.fiyat?m(p.fiyat):"—")+'</span><button data-add="'+p.id+'">Ekle</button></div>'}).join("")+"</div>";
   h+='<div class="box"><h3>Sepet</h3>'+(S.cart.length?S.cart.map(function(l,i){return'<div class="row"><div class="n">'+esc(l.ad)+'</div><input class="cl" type="number" min="0" step="any" data-q="'+i+'" value="'+l.qty+'"><input class="pr" type="number" min="0" step="any" data-pr="'+i+'" value="'+l.price+'"><span class="p" id="lt'+i+'">'+m(l.qty*l.price)+'</span><button class="g" data-del="'+i+'">×</button></div>'}).join(""):'<span class="mut">Sepet boş. Yukarıdan ürün arayıp ekleyin.</span>')+"</div>";
-  h+='<div class="box"><div class="g2"><div><span class="mut">Müşteri / Cari</span><select id="sc"><option value="">— Cari değil (peşin) —</option>'+S.C.map(function(c){return'<option value="'+esc(c.no)+'"'+(S.sc===c.no?" selected":"")+">"+esc(c.ad)+"</option>"}).join("")+'</select></div>'+
+  h+='<div class="box"><div class="g2">'+custPick()+''+
    '<div><span class="mut">Kaynak</span><select id="src">'+["Dükkan","WhatsApp/Site"].map(function(o){return"<option"+(S.src===o?" selected":"")+">"+o+"</option>"}).join("")+'</select></div></div>'+payBlock()+'<br><input id="nt" placeholder="Not (isteğe bağlı)" value="'+esc(S.nt)+'"><br><br>'+
    '<div class="row"><label style="display:flex;gap:8px;align-items:center;flex:1"><input type="checkbox" id="kv" style="width:auto"'+(S.kdv?" checked":"")+'> KDV ekle</label><span class="mut">Oran %</span><input id="kr" class="cl" type="number" min="0" max="100" step="any" value="'+esc(S.kr)+'"'+(S.kdv?"":" disabled")+'></div>'+
    '<div class="row"><div class="n"><span class="mut">Ara toplam (KDV hariç)</span><div id="t1" style="font-weight:700">'+m(c.a)+'</div><span class="mut">KDV</span><div id="t2" style="font-weight:700">'+m(c.k)+'</div></div></div>'+
@@ -84,8 +89,8 @@ function vSale(){var c=calc();
 function vCust(){
   var c=S.cust&&S.C.filter(function(x){return x.no===S.cust})[0],h="";
   h+='<div class="box"><h3>Cari hesaplar</h3><input id="cq" placeholder="Cari ara..." value="'+esc(S.cq||"")+'">'+
-   S.C.filter(function(x){return !S.cq||fold(x.ad+x.tel).indexOf(fold(S.cq))>=0}).map(function(x){return'<div class="row" data-c="'+x.no+'" style="cursor:pointer"><div class="n">'+esc(x.ad)+"<small>"+esc(x.tel||"")+'</small></div><span class="p" style="color:'+(x.bakiye>0?"#b00020":"inherit")+'">'+m(x.bakiye)+"</span></div>"}).join("")+(S.C.length?"":'<span class="mut">Henüz cari yok.</span>')+"</div>";
-  h+='<div class="box"><h3>Yeni cari ekle</h3><div class="g2"><input id="nn" placeholder="Ünvan *"><input id="nc" placeholder="Yetkili"><input id="np" placeholder="Telefon"><input id="nv" placeholder="Vergi no"></div><br><input id="nx" placeholder="Not"><br><br><button id="addc">Cariyi Kaydet</button></div>';
+   S.C.filter(function(x){return !S.cq||fold(x.ad+" "+x.tel+" "+x.vergi).indexOf(fold(S.cq))>=0}).slice(0,50).map(function(x){return'<div class="row" data-c="'+x.no+'" style="cursor:pointer"><div class="n">'+esc(x.ad)+"<small>"+esc(x.tel||"")+'</small></div><span class="p" style="color:'+(x.bakiye>0?"#b00020":"inherit")+'">'+m(x.bakiye)+"</span></div>"}).join("")+(S.C.length?"":'<span class="mut">Henüz cari yok.</span>')+"</div>";
+  h+='<div class="box"><h3>Yeni cari ekle</h3><div class="g2"><input id="nn" placeholder="Ünvan *"><input id="nc" placeholder="Yetkili"><input id="np" placeholder="Telefon"><input id="nv" placeholder="Vergi no"></div><br><input id="nx" placeholder="Vergi dairesi"><br><br><button id="addc">Cariyi Kaydet</button></div>';
   if(c){h+='<div class="box"><h3>'+esc(c.ad)+'</h3><div class="mut">'+esc(c.tel||"")+" "+esc(c.yetkili||"")+'</div><div class="big" style="color:'+(c.bakiye>0?"#b00020":"inherit")+'">Bakiye: '+m(c.bakiye)+'</div><div class="mut">Bakiye = açık hesap satışlar − tahsilatlar (KDV hariç)</div><br>'+
    '<div class="g3"><input id="pa" type="number" min="0" step="any" placeholder="Tahsilat tutarı"><select id="pm"><option>Nakit</option><option>Kart</option><option>Havale</option><option>Çek</option></select><input id="pn" placeholder="Not"></div><br><button id="paybtn">Tahsilat Kaydet</button></div>';
    if(S.st)h+='<div class="box"><h3>Ekstre</h3>'+(S.st.sales.map(function(s){return'<div class="row"><div class="n">'+s.no+"<small>"+s.date+'</small></div><span class="p">+ '+m(s.total)+"</span></div>"}).join("")+S.st.pays.map(function(p){return'<div class="row"><div class="n">'+p.no+" · "+esc(p.method)+"<small>"+p.date+" "+esc(p.note||"")+'</small></div><span class="p" style="color:#1b5e20">− '+m(p.amount)+'</span><button class="g" data-cp="'+p.no+'">İptal</button></div>'}).join("")||'<span class="mut">Hareket yok.</span>')+"</div>"}
@@ -112,6 +117,7 @@ $("view").addEventListener("input",function(e){
   if(id==="nt")S.nt=t.value;
   else if(id==="kr"){S.kr=t.value;upd()}
   else if(id==="q"){S.q=t.value;var p=t.selectionStart;render();var n=$("q");n.focus();n.setSelectionRange(p,p)}
+  else if(id==="csq"){S.csq=t.value;var p4=t.selectionStart;render();var n4=$("csq");n4.focus();n4.setSelectionRange(p4,p4)}
   else if(id==="cq"){S.cq=t.value;var p2=t.selectionStart;render();var n2=$("cq");n2.focus();n2.setSelectionRange(p2,p2)}
   else if(id==="sq"){S.sq=t.value;var p3=t.selectionStart;render();var n3=$("sq");n3.focus();n3.setSelectionRange(p3,p3)}
   else if(t.dataset.pa!==undefined){S.pays[t.dataset.pa].a=t.value;upd()}
@@ -119,9 +125,11 @@ $("view").addEventListener("input",function(e){
 });
 $("view").addEventListener("change",function(e){var t=e.target;if(t.id==="kv"){S.kdv=t.checked;$("kr").disabled=!t.checked;upd()}if(t.id==="sc")S.sc=t.value;if(t.dataset.pm!==undefined)S.pays[t.dataset.pm].m=t.value;if(t.id==="src")S.src=t.value;if(t.id==="low"){S.low=t.checked;render()}});
 $("view").addEventListener("click",function(e){
-  var el=e.target.closest("[data-add],[data-del],[data-c],[data-cp],[data-cs],[data-sin],[data-sset],[data-pd],[data-pf],#addpay,#save,#addc,#paybtn"),d;if(!el)return;d=el.dataset;
+  var el=e.target.closest("[data-add],[data-del],[data-c],[data-cp],[data-cs],[data-sin],[data-sset],[data-cs2],[data-csx],[data-pd],[data-pf],#addpay,#save,#addc,#paybtn"),d;if(!el)return;d=el.dataset;
   if(d.add){var p=S.P.filter(function(x){return x.id===d.add})[0],ex=S.cart.filter(function(l){return l.id===p.id})[0];if(ex)ex.qty=Number(ex.qty)+1;else S.cart.push({id:p.id,ad:p.ad,qty:1,price:p.fiyat});render()}
   else if(d.del!==undefined){S.cart.splice(d.del,1);render()}
+  else if(d.cs2!==undefined){S.sc=d.cs2;S.csq="";render()}
+  else if(d.csx!==undefined){S.sc="";render()}
   else if(el.id==="addpay"){if(S.pays.length===1)S.pays[0].a=String(calc().g);S.pays.push({m:"Kart",a:"0"});render()}
   else if(d.pd!==undefined){S.pays.splice(d.pd,1);if(S.pays.length===1)S.pays[0].a="";render()}
   else if(d.pf!==undefined){var oth=0;S.pays.forEach(function(q,j){if(String(j)!==d.pf)oth+=Number(q.a)||0});S.pays[d.pf].a=String(Math.max(0,Math.round((calc().g-oth)*100)/100));render()}
@@ -133,7 +141,7 @@ $("view").addEventListener("click",function(e){
     pl.forEach(function(q){sm+=q.amount});
     if(!pl.length||Math.abs(sm-c1.g)>0.01)return toast("Ödeme tutarları genel toplama eşit olmalı. Kalan: "+m(c1.g-sm),1);
     if(pl.some(function(q){return q.method==="Veresiye"})&&!S.sc)return toast("Açık hesap için cari seçin",1);
-    act(function(){return api("sale",{customerNo:S.sc,kdv:S.kdv?(Number(S.kr)||0):0,payment:pl[0].method,payments:pl,source:$("src").value,note:$("nt").value,items:S.cart.map(function(l){return{id:l.id,qty:l.qty,price:l.price}})})},"Satış kaydedildi").then(function(r){if(r){S.cart=[];S.q="";S.sc="";S.nt="";S.pays=[{m:S.pays[0].m,a:""}];return fresh()}})}
+    act(function(){return api("sale",{customerNo:S.sc,kdv:S.kdv?(Number(S.kr)||0):0,payment:pl[0].method,payments:pl,source:$("src").value,note:$("nt").value,items:S.cart.map(function(l){return{id:l.id,qty:l.qty,price:l.price}})})},"Satış kaydedildi").then(function(r){if(r){S.cart=[];S.q="";S.sc="";S.csq="";S.nt="";S.pays=[{m:S.pays[0].m,a:""}];return fresh()}})}
   else if(el.id==="addc"){act(function(){return api("addCust",{name:$("nn").value,contact:$("nc").value,phone:$("np").value,tax:$("nv").value,note:$("nx").value})},"Cari eklendi").then(function(r){if(r)return fresh()})}
   else if(el.id==="paybtn"){act(function(){return api("pay",{customerNo:S.cust,amount:$("pa").value,method:$("pm").value,note:$("pn").value})},"Tahsilat kaydedildi").then(function(r){if(r){S.st=null;return fresh().then(function(){return api("statement",{customerNo:S.cust})}).then(function(s){S.st=s;render()})}})}
   else if(d.cp){if(confirm("Tahsilat iptal edilsin mi?"))act(function(){return api("cancelPay",{no:d.cp})},"İptal edildi").then(function(r){if(r)return fresh().then(function(){return api("statement",{customerNo:S.cust})}).then(function(s){S.st=s;render()})})}
