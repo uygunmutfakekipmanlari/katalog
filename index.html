@@ -57,8 +57,8 @@ details.all{max-width:1200px;margin:24px auto 0;padding:0 14px}details.all summa
 .dh{display:flex;justify-content:space-between;align-items:center;padding:14px 16px;border-bottom:1px solid var(--line);font-weight:700;font-size:17px}
 .dh button{border:0;background:none;font-size:24px;cursor:pointer}
 #cl{flex:1;overflow:auto;padding:6px 16px}
-.ci{padding:10px 0;border-bottom:1px solid var(--line);font-size:14px}
-.ci .t{font-weight:600}.ci .m{color:var(--mut);font-size:12.5px}
+.ci{display:flex;gap:10px;align-items:flex-start;padding:10px 0;border-bottom:1px solid var(--line);font-size:14px}
+.ci .ct{width:56px;height:56px;object-fit:contain;background:#fff;border:1px solid var(--line);border-radius:8px;flex:none}.ci .cb{flex:1;min-width:0}.ci .t{font-weight:600}.ci .m{color:var(--mut);font-size:12.5px}
 .ci .r{display:flex;align-items:center;gap:8px;margin-top:6px}
 .q{display:flex;align-items:center;border:1px solid #ccc;border-radius:8px}
 .q button{border:0;background:none;width:30px;height:30px;font-size:17px;cursor:pointer}.q span{min-width:26px;text-align:center}
@@ -197,7 +197,7 @@ function items(){return Object.keys(cart).filter(function(k){return P[k]&&cart[k
 function drawCart(){
   var it=items(),n=0,sum=0,np=0,h="";
   it.forEach(function(x){var p=x.p;n+=x.q;if(p[6]>0)sum+=p[6]*x.q;else np++;
-    h+='<div class="ci"><div class="t">'+esc(p[1])+'</div><div class="m">'+esc((p[2]||"")+(p[3]?" · Kod: "+p[3]:""))+'</div><div class="r"><div class="q"><button data-dec="'+p[0]+'">−</button><span>'+x.q+'</span><button data-inc="'+p[0]+'">+</button></div><button class="x" data-del="'+p[0]+'">Kaldır</button><span class="lp">'+(p[6]>0?money(p[6]*x.q):"Fiyat sorulacak")+'</span></div></div>'});
+    h+='<div class="ci"><img class="ct" loading="lazy" src="'+esc(IMAGES[p[0]]||DEFAULT_IMG)+'" alt="'+esc(p[1])+'"><div class="cb"><div class="t">'+esc(p[1])+'</div><div class="m">'+esc((p[2]||"")+(p[3]?" · Kod: "+p[3]:""))+'</div><div class="r"><div class="q"><button data-dec="'+p[0]+'">−</button><span>'+x.q+'</span><button data-inc="'+p[0]+'">+</button></div><button class="x" data-del="'+p[0]+'">Kaldır</button><span class="lp">'+(p[6]>0?money(p[6]*x.q):"Fiyat sorulacak")+'</span></div></div></div>'});
   document.getElementById("cl").innerHTML=h||'<div class="empty">Sepetiniz boş.</div>';
   document.getElementById("cc").textContent=n;
   document.getElementById("ct").textContent=money(sum);
