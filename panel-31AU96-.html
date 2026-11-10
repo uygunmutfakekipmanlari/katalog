@@ -37,7 +37,7 @@ button.g{background:#fff;color:var(--dark);border:1px solid #ccc}button.k{backgr
 <script>
 // Apps Script dağıtımından aldığınız "Web uygulaması URL'si" adresini buraya yapıştırın:
 var SCRIPT_URL="https://script.google.com/macros/s/AKfycbwkaPmYF1YxZakpwqge-chPUP_qHf9ewEKq2JhOuGAaU-J4TzRNMQ8XztKQ2UsoAqtN/exec";
-var S={O:[],R:[],tg:{},of:{ad:"",qty:"",unit:"",from:"",note:"",id:""},oq:"",oed:"",ofl:"",rf:{name:"",type:"Günlük",date:"",time:"09:00",days:[],filter:""},rOpen:false,pin:"",P:[],C:[],sum:{today:{},month:{}},cart:[],tab:"sale",kr:20,pays:[{m:"Nakit",a:"",k:false}],cOpen:false,pOpen:false,T:[],sup:null,ss:null,tOpen:false,bOpen:false,bm:false,bi:[],bq:"",bn:"",bk:"20",binv:"",bnt:"",bpays:[{m:"Borç",a:""}],tq:"",src:"Dükkan",nt:"",q:"",sc:"",low:false,cust:null,st:null,rec:null,busy:false};
+var S={E:{ym:"",total:0,kdv:0,cats:[],list:[]},ef:{date:"",cat:"",ad:"",net:"",kdv:"20",met:"Nakit"},eOpen:true,O:[],R:[],tg:{},of:{ad:"",qty:"",unit:"",from:"",note:"",id:""},oq:"",oed:"",ofl:"",rf:{name:"",type:"Günlük",date:"",time:"09:00",days:[],filter:""},rOpen:false,pin:"",P:[],C:[],sum:{today:{},month:{}},cart:[],tab:"sale",kr:20,pays:[{m:"Nakit",a:"",k:false}],cOpen:false,pOpen:false,T:[],sup:null,ss:null,tOpen:false,bOpen:false,bm:false,bi:[],bq:"",bn:"",bk:"20",binv:"",bnt:"",bpays:[{m:"Borç",a:""}],tq:"",src:"Dükkan",nt:"",q:"",sc:"",low:false,cust:null,st:null,rec:null,busy:false};
 var $=function(i){return document.getElementById(i)};
 function esc(s){return String(s==null?"":s).replace(/[&<>"]/g,function(c){return{"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]})}
 function fold(s){return String(s||"").replace(/İ/g,"i").replace(/I/g,"ı").toLowerCase().replace(/ı/g,"i").replace(/ş/g,"s").replace(/ğ/g,"g").replace(/ü/g,"u").replace(/ö/g,"o").replace(/ç/g,"c")}
@@ -48,15 +48,15 @@ function api(action,d){
   return fetch(SCRIPT_URL,{method:"POST",body:JSON.stringify(b)}).then(function(r){return r.json()}).then(function(j){if(!j.ok)throw new Error(j.error||"Hata");return j.data})
 }
 function act(fn,okmsg){if(S.busy)return;S.busy=true;return fn().then(function(r){if(okmsg)toast(okmsg);return r}).catch(function(e){toast(e.message==="Failed to fetch"?"Bağlantı hatası, internetinizi ve adresi kontrol edin":e.message,1)}).then(function(r){S.busy=false;return r})}
-function load(){return api("init").then(function(d){S.P=d.products;S.C=d.customers;S.T=d.suppliers||[];S.O=d.orders||[];S.R=d.reminders||[];S.tg=d.tg||{};S.sum=d.summary;render()})}
+function load(){return api("init").then(function(d){S.P=d.products;S.C=d.customers;S.T=d.suppliers||[];S.O=d.orders||[];S.R=d.reminders||[];if(d.exp)S.E=d.exp;S.tg=d.tg||{};S.sum=d.summary;render()})}
 $("go").onclick=function(){S.pin=$("pin").value;if(SCRIPT_URL.indexOf("http")!==0)return toast("panel.html içine Apps Script adresi yazılmamış",1);
   act(function(){return load()}).then(function(){if(S.P.length){$("login").hidden=true;$("app").hidden=false;try{sessionStorage.setItem("pin",S.pin)}catch(e){}}})};
 $("pin").onkeydown=function(e){if(e.key==="Enter")$("go").click()};
 $("rf").onclick=function(){act(function(){return load()},"Yenilendi")};
-var TABS=[["sale","Satış"],["cust","Cari"],["sup","Tedarikçi"],["stock","Stok"],["ord","Sipariş"],["rec","Kayıtlar"]];
+var TABS=[["sale","Satış"],["cust","Cari"],["sup","Tedarikçi"],["stock","Stok"],["ord","Sipariş"],["exp","Masraf"],["rec","Kayıtlar"]];
 function render(){
   $("tabs").innerHTML=TABS.map(function(t){return'<button data-t="'+t[0]+'" class="'+(S.tab===t[0]?"on":"")+'">'+t[1]+"</button>"}).join("");
-  var v=$("view"),f=({sale:vSale,cust:vCust,sup:vSup,stock:vStock,ord:vOrd,rec:vRec})[S.tab];v.innerHTML=f();
+  var v=$("view"),f=({sale:vSale,cust:vCust,sup:vSup,stock:vStock,ord:vOrd,exp:vExp,rec:vRec})[S.tab];v.innerHTML=f();
 }
 function thumb(p){return p&&p.img?'<img class="th" loading="lazy" src="'+esc(p.img)+'" alt="">':'<div class="th ph">📦</div>'}
 function filt(q){var w=fold(q).split(/\s+/).filter(Boolean);return S.P.filter(function(p){var k=fold(p.ad+" "+p.marka+" "+p.kod+" "+p.id);return w.every(function(x){return k.indexOf(x)>=0})})}
@@ -231,6 +231,48 @@ $("view").addEventListener("click",function(e){
   else if(d.rdel){if(confirm("Hatırlatma silinsin mi?"))act(function(){return api("remDel",{no:d.rdel}).then(reload)},"Silindi")}
   else if(d.rnow){act(function(){return api("remNow",{no:d.rnow})}).then(function(r){if(r&&r.empty)toast("Liste boş, mesaj gönderilmedi");else if(r&&r.sent)toast("Telegram'a gönderildi")})}
   else if(el.id==="tgtest"){act(function(){return api("tgTest")},"Test mesajı gönderildi")}
+});
+
+// ===== Masraflar =====
+var KATS=["Kira","Elektrik","Su","Doğalgaz","İnternet / Telefon","Yakıt","Personel","Nakliye / Kargo","Vergi / SGK","Bakım / Onarım","Ambalaj / Malzeme","Diğer"];
+function today(){var d=new Date();return d.getFullYear()+"-"+("0"+(d.getMonth()+1)).slice(-2)+"-"+("0"+d.getDate()).slice(-2)}
+function eTot(){var f=S.ef,n=Number(String(f.net).replace(",","."))||0,k=Number(f.kdv)||0;return{net:n,kdv:Math.round(n*k)/100,total:Math.round(n*(100+k))/100}}
+function expList(){
+  var l=S.E.list;if(!l.length)return'<p class="mut">Bu ay masraf yok.</p>';
+  return l.map(function(e){var c=e.status!=="Aktif";
+    return'<div class="row" style="'+(c?"opacity:.5;text-decoration:line-through":"")+'"><div class="n"><b>'+esc(e.cat)+'</b>'+(e.ad?" — "+esc(e.ad):"")+'<small>'+esc(e.date)+" · "+esc(e.met)+(e.kdv?" · KDV "+m(e.kdv):"")+'</small></div><span class="p">'+m(e.total)+'</span>'+(c?'<span class="badge z">İptal</span>':'<button class="g" data-ecx="'+esc(e.no)+'">İptal</button>')+'</div>'}).join("");
+}
+function vExp(){
+  var f=S.ef,E=S.E,ym=E.ym||today().slice(0,7);
+  if(!f.date)f.date=today();
+  var t=eTot();
+  var h='<div class="box"><h3 id="ehead" style="cursor:pointer">'+(S.eOpen?"▾":"▸")+' Yeni masraf</h3>';
+  if(S.eOpen)h+='<div class="g2"><input id="edate" type="date" value="'+esc(f.date)+'"><input id="ecat" list="catdl" placeholder="Kategori" value="'+esc(f.cat)+'" autocomplete="off"></div>'+
+    '<datalist id="catdl">'+KATS.map(function(k){return'<option value="'+esc(k)+'">'}).join("")+'</datalist>'+
+    '<div style="margin-top:8px"><input id="ead" placeholder="Açıklama (isteğe bağlı)" value="'+esc(f.ad)+'"></div>'+
+    '<div class="g3" style="margin-top:8px"><input id="enet" inputmode="decimal" placeholder="Tutar (KDV hariç)" value="'+esc(f.net)+'">'+
+    '<select id="ekdv">'+["0","1","10","20"].map(function(x){return'<option value="'+x+'"'+(f.kdv===x?" selected":"")+'>KDV %'+x+'</option>'}).join("")+'</select>'+
+    '<select id="emet">'+["Nakit","Kart","Havale"].map(function(x){return'<option'+(f.met===x?" selected":"")+'>'+x+'</option>'}).join("")+'</select></div>'+
+    '<p class="mut" style="margin:8px 0 0">KDV: <span id="ekt">'+m(t.kdv)+'</span> · Toplam: <b id="ett">'+m(t.total)+'</b></p>'+
+    '<div style="margin-top:8px"><button id="eadd" style="width:100%">Masrafı kaydet</button></div>';
+  h+='</div><div class="box"><h3>Aylık özet</h3><input id="em" type="month" value="'+esc(ym)+'" style="margin-bottom:8px">'+
+    '<div class="cards"><div><span class="mut">Toplam masraf</span><div class="big">'+m(E.total)+'</div></div><div><span class="mut">İçindeki KDV</span><div class="big">'+m(E.kdv)+'</div></div></div>'+
+    (E.cats.length?E.cats.map(function(c){var pc=E.total?Math.round(c.v/E.total*100):0;return'<div class="row"><div class="n">'+esc(c.k)+'<div style="height:6px;border-radius:3px;background:#eee;margin-top:4px"><div style="height:6px;border-radius:3px;background:var(--red);width:'+pc+'%"></div></div></div><span class="p">'+m(c.v)+'</span><span class="mut" style="width:38px;text-align:right">%'+pc+'</span></div>'}).join(""):'<p class="mut">Bu ay masraf yok.</p>')+
+    '</div><div class="box"><h3>Kayıtlar</h3><div id="elist">'+expList()+'</div></div>';
+  return h;
+}
+$("view").addEventListener("input",function(e){var t=e.target,id=t.id,k={edate:"date",ecat:"cat",ead:"ad",enet:"net"}[id];
+  if(k){S.ef[k]=t.value;if(id==="enet"){var x=eTot();$("ekt").textContent=m(x.kdv);$("ett").textContent=m(x.total)}}});
+$("view").addEventListener("change",function(e){var t=e.target;
+  if(t.id==="ekdv"){S.ef.kdv=t.value;var x=eTot();$("ekt").textContent=m(x.kdv);$("ett").textContent=m(x.total)}
+  else if(t.id==="emet")S.ef.met=t.value;
+  else if(t.id==="em"&&t.value){act(function(){return api("expMonth",{ym:t.value}).then(function(r){S.E=r;render()})})}
+});
+$("view").addEventListener("click",function(e){var el=e.target.closest("[data-ecx],#eadd,#ehead"),d;if(!el)return;d=el.dataset;
+  if(el.id==="ehead"){S.eOpen=!S.eOpen;render()}
+  else if(el.id==="eadd"){var f=S.ef;if(!f.cat.trim())return toast("Kategori yazın",1);if(!(eTot().net>0))return toast("Tutarı girin",1);
+    act(function(){return api("expAdd",{date:f.date,cat:f.cat,ad:f.ad,net:eTot().net,kdv:f.kdv,met:f.met}).then(function(){S.ef.cat="";S.ef.ad="";S.ef.net="";return api("expMonth",{ym:f.date.slice(0,7)})}).then(function(r){S.E=r;render()})},"Masraf kaydedildi")}
+  else if(d.ecx){if(confirm("Bu masraf iptal edilsin mi?"))act(function(){return api("expCancel",{no:d.ecx}).then(function(){return api("expMonth",{ym:S.E.ym})}).then(function(r){S.E=r;render()})},"İptal edildi")}
 });
 $("tabs").onclick=function(e){var t=e.target.dataset.t;if(!t)return;S.tab=t;if(t==="rec"){S.rec=null;render();act(function(){return api("recent")}).then(function(r){S.rec=r||[];render()})}else render()};
 $("view").addEventListener("input",function(e){
