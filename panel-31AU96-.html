@@ -37,7 +37,7 @@ button.g{background:#fff;color:var(--dark);border:1px solid #ccc}button.k{backgr
 <script>
 // Apps Script dağıtımından aldığınız "Web uygulaması URL'si" adresini buraya yapıştırın:
 var SCRIPT_URL="https://script.google.com/macros/s/AKfycbwkaPmYF1YxZakpwqge-chPUP_qHf9ewEKq2JhOuGAaU-J4TzRNMQ8XztKQ2UsoAqtN/exec";
-var S={pin:"",P:[],C:[],sum:{today:{},month:{}},cart:[],tab:"sale",kr:20,pays:[{m:"Nakit",a:"",k:false}],cOpen:false,pOpen:false,T:[],sup:null,ss:null,tOpen:false,bOpen:false,bm:false,bi:[],bq:"",bn:"",bk:"20",binv:"",bnt:"",bpays:[{m:"Borç",a:""}],tq:"",src:"Dükkan",nt:"",q:"",sc:"",low:false,cust:null,st:null,rec:null,busy:false};
+var S={O:[],R:[],tg:{},of:{ad:"",qty:"",unit:"",from:"",note:"",id:""},oq:"",oed:"",ofl:"",rf:{name:"",type:"Günlük",date:"",time:"09:00",days:[],filter:""},rOpen:false,pin:"",P:[],C:[],sum:{today:{},month:{}},cart:[],tab:"sale",kr:20,pays:[{m:"Nakit",a:"",k:false}],cOpen:false,pOpen:false,T:[],sup:null,ss:null,tOpen:false,bOpen:false,bm:false,bi:[],bq:"",bn:"",bk:"20",binv:"",bnt:"",bpays:[{m:"Borç",a:""}],tq:"",src:"Dükkan",nt:"",q:"",sc:"",low:false,cust:null,st:null,rec:null,busy:false};
 var $=function(i){return document.getElementById(i)};
 function esc(s){return String(s==null?"":s).replace(/[&<>"]/g,function(c){return{"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]})}
 function fold(s){return String(s||"").replace(/İ/g,"i").replace(/I/g,"ı").toLowerCase().replace(/ı/g,"i").replace(/ş/g,"s").replace(/ğ/g,"g").replace(/ü/g,"u").replace(/ö/g,"o").replace(/ç/g,"c")}
@@ -48,15 +48,15 @@ function api(action,d){
   return fetch(SCRIPT_URL,{method:"POST",body:JSON.stringify(b)}).then(function(r){return r.json()}).then(function(j){if(!j.ok)throw new Error(j.error||"Hata");return j.data})
 }
 function act(fn,okmsg){if(S.busy)return;S.busy=true;return fn().then(function(r){if(okmsg)toast(okmsg);return r}).catch(function(e){toast(e.message==="Failed to fetch"?"Bağlantı hatası, internetinizi ve adresi kontrol edin":e.message,1)}).then(function(r){S.busy=false;return r})}
-function load(){return api("init").then(function(d){S.P=d.products;S.C=d.customers;S.T=d.suppliers||[];S.sum=d.summary;render()})}
+function load(){return api("init").then(function(d){S.P=d.products;S.C=d.customers;S.T=d.suppliers||[];S.O=d.orders||[];S.R=d.reminders||[];S.tg=d.tg||{};S.sum=d.summary;render()})}
 $("go").onclick=function(){S.pin=$("pin").value;if(SCRIPT_URL.indexOf("http")!==0)return toast("panel.html içine Apps Script adresi yazılmamış",1);
   act(function(){return load()}).then(function(){if(S.P.length){$("login").hidden=true;$("app").hidden=false;try{sessionStorage.setItem("pin",S.pin)}catch(e){}}})};
 $("pin").onkeydown=function(e){if(e.key==="Enter")$("go").click()};
 $("rf").onclick=function(){act(function(){return load()},"Yenilendi")};
-var TABS=[["sale","Satış"],["cust","Cari"],["sup","Tedarikçi"],["stock","Stok"],["rec","Kayıtlar"]];
+var TABS=[["sale","Satış"],["cust","Cari"],["sup","Tedarikçi"],["stock","Stok"],["ord","Sipariş"],["rec","Kayıtlar"]];
 function render(){
   $("tabs").innerHTML=TABS.map(function(t){return'<button data-t="'+t[0]+'" class="'+(S.tab===t[0]?"on":"")+'">'+t[1]+"</button>"}).join("");
-  var v=$("view"),f=({sale:vSale,cust:vCust,sup:vSup,stock:vStock,rec:vRec})[S.tab];v.innerHTML=f();
+  var v=$("view"),f=({sale:vSale,cust:vCust,sup:vSup,stock:vStock,ord:vOrd,rec:vRec})[S.tab];v.innerHTML=f();
 }
 function thumb(p){return p&&p.img?'<img class="th" loading="lazy" src="'+esc(p.img)+'" alt="">':'<div class="th ph">📦</div>'}
 function filt(q){var w=fold(q).split(/\s+/).filter(Boolean);return S.P.filter(function(p){var k=fold(p.ad+" "+p.marka+" "+p.kod+" "+p.id);return w.every(function(x){return k.indexOf(x)>=0})})}
@@ -150,6 +150,88 @@ function vRec(){
 }
 function reSup(){return fresh().then(function(){return api("supStatement",{supNo:S.sup})}).then(function(x){S.ss=x;render()})}
 function fresh(){return load()}
+
+// ===== Sipariş listesi + hatırlatmalar =====
+var GUN=["Pzt","Sal","Çar","Per","Cum","Cmt","Paz"];
+function ordRes(){
+  var q=fold(S.oq).trim();if(!q)return"";
+  var r=S.P.filter(function(p){return fold(p.ad+" "+(p.marka||"")+" "+p.id).indexOf(q)>=0}).slice(0,8);
+  return r.map(function(p){return'<div class="row"><div class="n">'+esc(p.ad)+'<small>'+esc(p.marka||"")+'</small></div><button class="g" data-opick="'+esc(p.id)+'">Seç</button></div>'}).join("")||'<p class="mut">Katalogda yok. Aşağıya serbest yazabilirsiniz.</p>';
+}
+function ordList(){
+  var items=S.O.filter(function(o){return !S.ofl||o.status===S.ofl});
+  if(!items.length)return'<p class="mut">Liste boş.</p>';
+  var g={},k=[];items.forEach(function(o){var n=o.from||"Kimden belirtilmemiş";if(!g[n]){g[n]=[];k.push(n)}g[n].push(o)});
+  return k.map(function(n){return'<h4 style="margin:10px 0 2px">📦 '+esc(n)+'</h4>'+g[n].map(function(o){
+    var cls=o.status==="Geldi"?"":o.status==="Sipariş verildi"?" l":" z";
+    return'<div class="row"><div class="n"><b>'+esc(o.ad)+'</b>'+(o.qty!==""?' — '+esc(o.qty)+' '+esc(o.unit||"adet"):"")+(o.note?'<small>'+esc(o.note)+'</small>':"")+'</div>'+
+    '<button class="g" data-ost="'+esc(o.no)+'"><span class="badge'+cls+'">'+esc(o.status)+'</span></button>'+
+    '<button class="g" data-oed="'+esc(o.no)+'">✎</button><button class="g" data-odel="'+esc(o.no)+'">✕</button></div>'}).join("")}).join("");
+}
+function remList(){
+  if(!S.R.length)return'<p class="mut">Henüz hatırlatma yok.</p>';
+  return S.R.map(function(r){
+    var when=r.type==="Tek"?r.date+" "+r.time:r.type==="Günlük"?"Her gün "+r.time:"Her hafta "+r.days.split(",").filter(Boolean).map(function(x){return GUN[x-1]}).join(", ")+" "+r.time;
+    return'<div class="row"><div class="n"><b>'+esc(r.name)+'</b><small>'+esc(when)+(r.filter?" · "+esc(r.filter):"")+(r.last?" · son: "+esc(r.last):"")+(r.status?" · "+esc(r.status):"")+'</small></div>'+
+    '<button class="g" data-rnow="'+esc(r.no)+'">Şimdi gönder</button>'+
+    '<button class="'+(r.active?"":"g")+'" data-rtg="'+esc(r.no)+'">'+(r.active?"Açık":"Kapalı")+'</button><button class="g" data-rdel="'+esc(r.no)+'">✕</button></div>'}).join("");
+}
+function vOrd(){
+  var f=S.of,rf=S.rf,tg=S.tg||{};
+  var sdl='<datalist id="supdl">'+S.T.map(function(t){return'<option value="'+esc(t.ad)+'">'}).join("")+'</datalist>';
+  var h='<div class="box"><h3>'+(S.oed?"Kalemi düzenle":"Siparişe ürün ekle")+'</h3>'+
+   '<div style="position:relative"><input id="oq" placeholder="Katalogdan ürün ara…" value="'+esc(S.oq)+'" autocomplete="off"></div><div id="ores">'+ordRes()+'</div>'+
+   '<div style="margin-top:8px"><input id="oad" placeholder="Ürün adı (katalog dışı da yazılabilir)" value="'+esc(f.ad)+'"></div>'+
+   '<div class="g3" style="margin-top:8px"><input id="oqty" inputmode="decimal" placeholder="Adet" value="'+esc(f.qty)+'"><input id="ounit" placeholder="Birim (koli…)" value="'+esc(f.unit)+'"><input id="ofrom" list="supdl" placeholder="Kimden / nereden" value="'+esc(f.from)+'"></div>'+sdl+
+   '<div style="margin-top:8px"><input id="onote" placeholder="Not (isteğe bağlı)" value="'+esc(f.note)+'"></div>'+
+   '<div style="margin-top:8px;display:flex;gap:8px"><button id="oadd" style="flex:1">'+(S.oed?"Kaydet":"Listeye ekle")+'</button>'+(S.oed?'<button class="g" id="ocancel">Vazgeç</button>':"")+'</div></div>'+
+   '<div class="box"><h3>Sipariş listesi</h3><select id="ofl" style="margin-bottom:6px"><option value="">Tümü</option>'+["Bekliyor","Sipariş verildi","Geldi"].map(function(x){return'<option'+(S.ofl===x?" selected":"")+'>'+x+'</option>'}).join("")+'</select><div id="olist">'+ordList()+'</div>'+
+   '<div style="margin-top:8px"><button class="g" id="oclr">Gelenleri listeden temizle</button></div></div>'+
+   '<div class="box"><h3 id="rhead" style="cursor:pointer">'+(S.rOpen?"▾":"▸")+' Telegram hatırlatmaları</h3>';
+  if(S.rOpen){
+    h+='<p class="mut">Telegram: '+(tg.ok?"✅ bağlı":tg.token?"⚠️ token var, telegramKur çalıştırılmalı":"❌ bağlı değil")+' · Zamanlayıcı: '+(tg.timer===true?"✅ kurulu":tg.timer===false?"❌ kurulu değil (zamanlayiciKur çalıştırın)":"?")+' <button class="g" id="tgtest" style="margin-left:6px">Test mesajı</button></p>'+
+    '<div id="rlist">'+remList()+'</div><hr style="border:0;border-top:1px solid var(--line);margin:12px 0"><b>Yeni hatırlatma</b>'+
+    '<div style="margin-top:8px"><input id="rname" placeholder="Ad (isteğe bağlı)" value="'+esc(rf.name)+'"></div>'+
+    '<div class="g2" style="margin-top:8px"><select id="rtype">'+["Günlük","Haftalık","Tek"].map(function(x){return'<option'+(rf.type===x?" selected":"")+'>'+x+'</option>'}).join("")+'</select><input id="rtime" type="time" value="'+esc(rf.time)+'"></div>'+
+    (rf.type==="Tek"?'<div style="margin-top:8px"><input id="rdate" type="date" value="'+esc(rf.date)+'"></div>':"")+
+    (rf.type==="Haftalık"?'<div style="margin-top:8px;display:flex;gap:4px;flex-wrap:wrap">'+GUN.map(function(g,i){var on=rf.days.indexOf(i+1)>=0;return'<button class="'+(on?"":"g")+'" data-rday="'+(i+1)+'">'+g+'</button>'}).join("")+'</div>':"")+
+    '<div style="margin-top:8px"><input id="rfilter" list="supdl" placeholder="Sadece şu kişi/firma (boşsa hepsi)" value="'+esc(rf.filter)+'"></div>'+
+    '<div style="margin-top:8px"><button id="radd" style="width:100%">Hatırlatma ekle</button></div>'+
+    '<p class="mut">Mesajlar belirlediğiniz saatten en geç ~15 dk sonra gelir.</p>';
+  }
+  return h+'</div>';
+}
+function reload(){return load()}
+function ordReset(){S.of={ad:"",qty:"",unit:"",from:"",note:"",id:""};S.oq="";S.oed=""}
+$("view").addEventListener("input",function(e){
+  var t=e.target,id=t.id,m2={oad:"ad",oqty:"qty",ounit:"unit",ofrom:"from",onote:"note"};
+  if(id==="oq"){S.oq=t.value;$("ores").innerHTML=ordRes()}
+  else if(m2[id]){S.of[m2[id]]=t.value;if(id==="oad")S.of.id=""}
+  else if(id==="rname")S.rf.name=t.value;else if(id==="rtime")S.rf.time=t.value;else if(id==="rdate")S.rf.date=t.value;else if(id==="rfilter")S.rf.filter=t.value;
+});
+$("view").addEventListener("change",function(e){var t=e.target;
+  if(t.id==="ofl"){S.ofl=t.value;$("olist").innerHTML=ordList()}
+  else if(t.id==="rtype"){S.rf.type=t.value;render()}
+});
+$("view").addEventListener("click",function(e){
+  var el=e.target.closest("[data-opick],[data-ost],[data-oed],[data-odel],[data-rtg],[data-rdel],[data-rnow],[data-rday],#oadd,#ocancel,#oclr,#radd,#tgtest,#rhead"),d;if(!el)return;d=el.dataset;
+  if(d.opick){var p=S.P.filter(function(x){return x.id===d.opick})[0];if(p){S.of.ad=p.ad;S.of.id=p.id;S.oq="";render()}}
+  else if(d.ost){var o=S.O.filter(function(x){return x.no===d.ost})[0],ns={"Bekliyor":"Sipariş verildi","Sipariş verildi":"Geldi","Geldi":"Bekliyor"}[o.status];
+    act(function(){return api("orderUpdate",{no:o.no,status:ns}).then(reload)})}
+  else if(d.oed){var o2=S.O.filter(function(x){return x.no===d.oed})[0];S.oed=o2.no;S.of={ad:o2.ad,qty:o2.qty,unit:o2.unit,from:o2.from,note:o2.note,id:o2.id};render();window.scrollTo(0,0)}
+  else if(d.odel){if(confirm("Bu kalem silinsin mi?"))act(function(){return api("orderDel",{no:d.odel}).then(reload)},"Silindi")}
+  else if(el.id==="ocancel"){ordReset();render()}
+  else if(el.id==="oadd"){var f=S.of;if(!f.ad.trim())return toast("Ürün adı yazın",1);
+    act(function(){return api(S.oed?"orderUpdate":"orderAdd",Object.assign({no:S.oed},f)).then(function(){ordReset();return reload()})},"Kaydedildi")}
+  else if(el.id==="oclr"){if(confirm("'Geldi' durumundaki kalemler silinsin mi?"))act(function(){return api("orderClearDone").then(reload)},"Temizlendi")}
+  else if(el.id==="rhead"){S.rOpen=!S.rOpen;render()}
+  else if(d.rday){var n=Number(d.rday),i=S.rf.days.indexOf(n);if(i>=0)S.rf.days.splice(i,1);else S.rf.days.push(n);render()}
+  else if(el.id==="radd"){var r=S.rf;act(function(){return api("remAdd",{name:r.name,type:r.type,date:r.date,time:r.time,days:r.days.join(","),filter:r.filter}).then(function(){S.rf.name="";return reload()})},"Hatırlatma eklendi")}
+  else if(d.rtg){var x=S.R.filter(function(q){return q.no===d.rtg})[0];act(function(){return api("remToggle",{no:x.no,active:!x.active}).then(reload)})}
+  else if(d.rdel){if(confirm("Hatırlatma silinsin mi?"))act(function(){return api("remDel",{no:d.rdel}).then(reload)},"Silindi")}
+  else if(d.rnow){act(function(){return api("remNow",{no:d.rnow})}).then(function(r){if(r&&r.empty)toast("Liste boş, mesaj gönderilmedi");else if(r&&r.sent)toast("Telegram'a gönderildi")})}
+  else if(el.id==="tgtest"){act(function(){return api("tgTest")},"Test mesajı gönderildi")}
+});
 $("tabs").onclick=function(e){var t=e.target.dataset.t;if(!t)return;S.tab=t;if(t==="rec"){S.rec=null;render();act(function(){return api("recent")}).then(function(r){S.rec=r||[];render()})}else render()};
 $("view").addEventListener("input",function(e){
   var t=e.target,id=t.id;
