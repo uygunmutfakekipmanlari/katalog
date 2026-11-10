@@ -37,7 +37,7 @@ button.g{background:#fff;color:var(--dark);border:1px solid #ccc}button.k{backgr
 <script>
 // Apps Script dağıtımından aldığınız "Web uygulaması URL'si" adresini buraya yapıştırın:
 var SCRIPT_URL="https://script.google.com/macros/s/AKfycbwkaPmYF1YxZakpwqge-chPUP_qHf9ewEKq2JhOuGAaU-J4TzRNMQ8XztKQ2UsoAqtN/exec";
-var S={L:null,lm:"",lf:"",E:{ym:"",total:0,kdv:0,cats:[],list:[]},ef:{date:"",cat:"",ad:"",net:"",kdv:"20",met:"Nakit"},eOpen:true,O:[],R:[],tg:{},of:{ad:"",qty:"",unit:"",from:"",note:"",id:""},oq:"",oed:"",ofl:"",rf:{name:"",type:"Günlük",date:"",time:"09:00",days:[],filter:""},rOpen:false,pin:"",P:[],C:[],sum:{today:{},month:{}},cart:[],tab:"sale",kr:20,pays:[{m:"Nakit",a:"",k:false}],cOpen:false,pOpen:false,T:[],sup:null,ss:null,tOpen:false,bOpen:false,bm:false,bi:[],bq:"",bn:"",bk:"20",binv:"",bnt:"",bpays:[{m:"Borç",a:""}],tq:"",src:"Dükkan",nt:"",q:"",sc:"",low:false,cust:null,st:null,rec:null,busy:false};
+var S={lgO:true,lhO:true,L:null,lm:"",lf:"",E:{ym:"",total:0,kdv:0,cats:[],list:[]},ef:{date:"",cat:"",ad:"",net:"",kdv:"20",met:"Nakit"},eOpen:true,O:[],R:[],tg:{},of:{ad:"",qty:"",unit:"",from:"",note:"",id:""},oq:"",oed:"",ofl:"",rf:{name:"",type:"Günlük",date:"",time:"09:00",days:[],filter:""},rOpen:false,pin:"",P:[],C:[],sum:{today:{},month:{}},cart:[],tab:"sale",kr:20,pays:[{m:"Nakit",a:"",k:false}],cOpen:false,pOpen:false,T:[],sup:null,ss:null,tOpen:false,bOpen:false,bm:false,bi:[],bq:"",bn:"",bk:"20",binv:"",bnt:"",bpays:[{m:"Borç",a:""}],tq:"",src:"Dükkan",nt:"",q:"",sc:"",low:false,cust:null,st:null,rec:null,busy:false};
 var $=function(i){return document.getElementById(i)};
 function esc(s){return String(s==null?"":s).replace(/[&<>"]/g,function(c){return{"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]})}
 function fold(s){return String(s||"").replace(/İ/g,"i").replace(/I/g,"ı").toLowerCase().replace(/ı/g,"i").replace(/ş/g,"s").replace(/ğ/g,"g").replace(/ü/g,"u").replace(/ö/g,"o").replace(/ç/g,"c")}
@@ -151,13 +151,14 @@ function ledList(){
 function vLed(){
   var L=S.L;if(!L)return'<div class="box"><span class="mut">Yükleniyor...</span></div>';
   var cd=function(a,b,c){return'<div><span class="mut">'+a+'</span><div class="big" style="font-size:19px;'+(c?"color:"+c:"")+'">'+m(b)+'</div></div>'};
-  return'<div class="box"><h3>Gelir – Gider</h3><input id="lm" type="month" value="'+esc(L.ym)+'" style="margin-bottom:8px">'+
+  return'<div class="box"><h3 id="lgh" style="cursor:pointer;margin:0">'+(S.lgO?"▾":"▸")+' Gelir – Gider</h3>'+(!S.lgO?"":'<div style="margin-top:8px"><input id="lm" type="month" value="'+esc(L.ym)+'" style="margin-bottom:8px">'+
    '<div class="cards">'+cd("Gelir (satışlar)",L.gelir,"#1b5e20")+cd("Gider (alışlar + masraflar)",L.gider,"#a00")+cd("Net",L.net,L.net<0?"#a00":"#1b5e20")+'</div>'+
    '<p class="mut" style="margin:0 0 4px">Alışlar '+m(L.alis)+' · Masraflar '+m(L.masraf)+' (satışlar ve alışlar fatura tutarı, açık hesap dahil)</p>'+
    '<h3 style="margin:12px 0 6px">Kasa / banka hareketi</h3><div class="cards">'+cd("Giriş (satış ödemeleri + tahsilat)",L.giris,"#1b5e20")+cd("Çıkış (tedarikçi ödemeleri + masraf)",L.cikis,"#a00")+cd("Net nakit",L.akis,L.akis<0?"#a00":"#1b5e20")+'</div>'+
-   '<p class="mut" style="margin:0">Sadece ödemesi yapılan/alınan tutarlar. Açık hesap satışlar tahsil edilince girişe, borçla alışlar ödenince çıkışa yazılır.</p></div>'+
-   '<div class="box"><h3>Tüm hareketler</h3><select id="lf" style="margin-bottom:6px">'+[["","Tümü"],["Satış","Satışlar"],["Tahsilat","Tahsilatlar"],["Alış","Alışlar"],["Ted. ödemesi","Tedarikçi ödemeleri"],["Masraf","Masraflar"]].map(function(o){return'<option value="'+o[0]+'"'+(S.lf===o[0]?" selected":"")+'>'+o[1]+'</option>'}).join("")+'</select><div id="llist">'+ledList()+'</div></div>';
+   '<p class="mut" style="margin:0">Sadece ödemesi yapılan/alınan tutarlar. Açık hesap satışlar tahsil edilince girişe, borçla alışlar ödenince çıkışa yazılır.</p></div>')+'</div>'+
+   '<div class="box"><h3 id="lhh" style="cursor:pointer;margin:0">'+(S.lhO?"▾":"▸")+' Tüm hareketler</h3>'+(!S.lhO?"":'<div style="margin-top:8px"><select id="lf" style="margin-bottom:6px">'+[["","Tümü"],["Satış","Satışlar"],["Tahsilat","Tahsilatlar"],["Alış","Alışlar"],["Ted. ödemesi","Tedarikçi ödemeleri"],["Masraf","Masraflar"]].map(function(o){return'<option value="'+o[0]+'"'+(S.lf===o[0]?" selected":"")+'>'+o[1]+'</option>'}).join("")+'</select><div id="llist">'+ledList()+'</div></div>')+'</div>';
 }
+$("view").addEventListener("click",function(e){var h=e.target.closest("#lgh,#lhh");if(!h)return;if(h.id==="lgh")S.lgO=!S.lgO;else S.lhO=!S.lhO;render()});
 $("view").addEventListener("change",function(e){var t=e.target;
   if(t.id==="lf"){S.lf=t.value;$("llist").innerHTML=ledList()}
   else if(t.id==="lm"&&t.value){S.lm=t.value;S.L=null;render();loadRec()}
