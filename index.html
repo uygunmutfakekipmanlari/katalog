@@ -244,10 +244,10 @@ function setView(v){view=v;try{localStorage.setItem("view",v)}catch(e){}state.sh
 document.getElementById("vg").onclick=function(){setView("grid")};
 document.getElementById("vl").onclick=function(){setView("list")};
 // Canlı fiyat/stok: Google tablosundaki Ürünler sayfasından gelir. Alınamazsa yukarıdaki gömülü liste kullanılır.
-function applyLive(rows){
-  var cnt={},idx={},np=[];
-  rows.forEach(function(r){if(r[4]){var c=r[3]||"Diğer";cnt[c]=(cnt[c]||0)+1}});
-  var names=Object.keys(cnt).sort(function(a,b){return cnt[b]-cnt[a]||a.localeCompare(b,"tr")});
+function applyLive(rows,sorted){
+  var cnt={},idx={},np=[],seen=[];
+  rows.forEach(function(r){if(r[4]){var c=r[3]||"Diğer";if(!cnt[c])seen.push(c);cnt[c]=(cnt[c]||0)+1}});
+  var names=sorted?seen:Object.keys(cnt).sort(function(a,b){return cnt[b]-cnt[a]||a.localeCompare(b,"tr")});
   names.forEach(function(n,i){idx[n]=i});
   rows.forEach(function(r){if(!r[4])return;np.push([r[0],r[4],r[2]||"",r[1]||"",EK[r[0]]||"",idx[r[3]||"Diğer"],Number(r[5])||0,Number(r[6])||0]);if(r[7])IMAGES[r[0]]=r[7]});
   if(!np.length)return;
@@ -257,7 +257,7 @@ function applyLive(rows){
   filter();drawCart();
 }
 function loadLive(){
-  try{fetch(LIVE_URL+"?a=catalog").then(function(r){return r.json()}).then(function(j){if(j&&j.ok&&j.p&&j.p.length)applyLive(j.p)}).catch(function(){})}catch(e){}
+  try{fetch(LIVE_URL+"?a=catalog").then(function(r){return r.json()}).then(function(j){if(j&&j.ok&&j.p&&j.p.length)applyLive(j.p,!!j.s)}).catch(function(){})}catch(e){}
 }
 filter();
 loadLive();
