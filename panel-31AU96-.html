@@ -45,8 +45,10 @@ function m(n){return (Number(n)||0).toLocaleString("tr-TR",{maximumFractionDigit
 function toast(t,e){var x=$("toast");x.textContent=t;x.className=e?"err":"";x.style.display="block";clearTimeout(x.t);x.t=setTimeout(function(){x.style.display="none"},e?4500:2200)}
 function api(action,d){
   var b=Object.assign({pin:S.pin,action:action},d||{});
-  return fetch(SCRIPT_URL,{method:"POST",body:JSON.stringify(b)}).then(function(r){return r.json()}).then(function(j){if(!j.ok)throw new Error(j.error||"Hata");return j.data})
+  return fetch(SCRIPT_URL,{method:"POST",body:JSON.stringify(b)}).then(function(r){return r.json()}).then(function(j){if(!j.ok)throw new Error(j.error||"Hata");S._u=!!j.u;if(j.u)applyU(j.u);return j.data})
 }
+// Sunucu kayıttan sonra yalnız değişen veriyi gönderir; panel her şeyi yeniden yüklemez
+function applyU(u){if(u.products)S.P=u.products;if(u.customers)S.C=u.customers;if(u.suppliers)S.T=u.suppliers;if(u.summary)S.sum=u.summary;if(u.statement)S.st=u.statement;if(u.supStatement)S.ss=u.supStatement}
 function act(fn,okmsg){if(S.busy)return;S.busy=true;return fn().then(function(r){if(okmsg)toast(okmsg);return r}).catch(function(e){toast(e.message==="Failed to fetch"?"Bağlantı hatası, internetinizi ve adresi kontrol edin":e.message,1)}).then(function(r){S.busy=false;return r})}
 function load(){return api("init").then(function(d){S.P=d.products;S.C=d.customers;S.T=d.suppliers||[];S.O=d.orders||[];S.R=d.reminders||[];if(d.exp)S.E=d.exp;S.tg=d.tg||{};S.sum=d.summary;render()})}
 $("go").onclick=function(){S.pin=$("pin").value;if(SCRIPT_URL.indexOf("http")!==0)return toast("panel.html içine Apps Script adresi yazılmamış",1);
@@ -170,8 +172,9 @@ function vRec(){
   h+='<div class="box"><h3>Son satışlar</h3>'+(S.rec?S.rec.map(function(s){return'<div class="row"><div class="n">'+s.no+' · '+esc(s.cust||"Peşin")+'<small>'+s.date+" · "+esc(s.source)+" · "+esc(s.pay==="Karma"?"Karma ("+(s.det||"").replace(/Veresiye/g,"Açık hesap")+")":(s.pay==="Veresiye"?"Açık hesap":s.pay))+(s.kdv>0?" · KDV dahil":"")+(s.status!=="Aktif"?" · İPTAL":"")+'</small></div><span class="p"'+(s.status!=="Aktif"?' style="text-decoration:line-through"':"")+">"+m(s.total)+"</span>"+(s.status==="Aktif"?'<button class="g" data-cs="'+s.no+'">İptal</button>':"")+"</div>"}).join(""):'<span class="mut">Yükleniyor...</span>')+"</div>";
   return vLed()+h;
 }
-function reSup(){return fresh().then(function(){return api("supStatement",{supNo:S.sup})}).then(function(x){S.ss=x;render()})}
-function fresh(){return load()}
+function reSup(){if(S._u){render();return Promise.resolve()}return load().then(function(){return api("supStatement",{supNo:S.sup})}).then(function(x){S.ss=x;render()})}
+function reCust(){if(S._u){render();return Promise.resolve()}S.st=null;return load().then(function(){return api("statement",{customerNo:S.cust})}).then(function(s){S.st=s;render()})}
+function fresh(){if(S._u){render();return Promise.resolve()}return load()}
 
 // ===== Sipariş listesi + hatırlatmalar =====
 var GUN=["Pzt","Sal","Çar","Per","Cum","Cmt","Paz"];
@@ -340,8 +343,8 @@ $("view").addEventListener("click",function(e){
     if(Math.abs(bs-bc.g)>0.01)return toast("Ödeme tutarları genel toplama eşit olmalı. Kalan: "+m(bc.g-bs),1);
     var bit=S.bm?S.bi.filter(function(l){return Number(l.qty)>0}).map(function(l){return{id:l.id,qty:l.qty,price:Number(l.price)||0}}):[];
     act(function(){return api("buy",{supNo:S.sup,invoice:S.binv,net:S.bn,kdv:S.bk,note:S.bnt,items:bit,payments:bpl})},"Alış kaydedildi").then(function(r){if(r){S.bi=[];S.bn="";S.binv="";S.bnt="";S.bq="";S.bpays=[{m:"Borç",a:""}];S.bOpen=false;return reSup()}})}
-  else if(d.cb!==undefined){if(confirm(d.cb+" alışı iptal edilsin mi? Kalem girildiyse stok geri düşülecek, borç silinecek."))act(function(){return api("cancelBuy",{no:d.cb})},"Alış iptal edildi").then(function(r){if(r)return reSup()})}
-  else if(d.csp!==undefined){if(confirm("Ödeme iptal edilsin mi?"))act(function(){return api("cancelSupPay",{no:d.csp})},"Ödeme iptal edildi").then(function(r){if(r)return reSup()})}
+  else if(d.cb!==undefined){if(confirm(d.cb+" alışı iptal edilsin mi? Kalem girildiyse stok geri düşülecek, borç silinecek."))act(function(){return api("cancelBuy",{no:d.cb,supNo:S.sup})},"Alış iptal edildi").then(function(r){if(r)return reSup()})}
+  else if(d.csp!==undefined){if(confirm("Ödeme iptal edilsin mi?"))act(function(){return api("cancelSupPay",{no:d.csp,supNo:S.sup})},"Ödeme iptal edildi").then(function(r){if(r)return reSup()})}
   else if(el.id==="addp"){act(function(){return api("addProduct",{ad:$("pn_ad").value,marka:$("pn_mk").value,kat:$("pn_kt").value,kod:$("pn_kd").value,fiyat:$("pn_fy").value,stok:$("pn_st").value,kritik:$("pn_kr").value})}).then(function(r){if(r){toast("Ürün eklendi: "+r.id);S.pOpen=false;return fresh()}})}
   else if(el.id==="addpay"){if(S.pays.length===1)S.pays[0].a=String(calc().a);S.pays.push({m:"Kart",a:"0",k:false});render()}
   else if(d.pd!==undefined){S.pays.splice(d.pd,1);if(S.pays.length===1)S.pays[0].a="";render()}
@@ -357,8 +360,8 @@ $("view").addEventListener("click",function(e){
     if(pl.some(function(q){return q.method==="Veresiye"})&&!S.sc)return toast("Açık hesap için cari seçin",1);
     act(function(){return api("sale",{customerNo:S.sc,payment:pl[0].method,payments:pl,source:$("src").value,note:$("nt").value,items:S.cart.map(function(l){return{id:l.id,qty:l.qty,price:l.price}})})},"Satış kaydedildi").then(function(r){if(r){S.cart=[];S.q="";S.sc="";S.csq="";S.nt="";S.pays=[{m:S.pays[0].m,a:"",k:S.pays[0].k}];return fresh()}})}
   else if(el.id==="addc"){act(function(){return api("addCust",{name:$("nn").value,contact:$("nc").value,phone:$("np").value,tax:$("nv").value,note:$("nx").value})},"Cari eklendi").then(function(r){if(r){S.cOpen=false;return fresh()}})}
-  else if(el.id==="paybtn"){act(function(){return api("pay",{customerNo:S.cust,amount:$("pa").value,method:$("pm").value,note:$("pn").value})},"Tahsilat kaydedildi").then(function(r){if(r){S.st=null;return fresh().then(function(){return api("statement",{customerNo:S.cust})}).then(function(s){S.st=s;render()})}})}
-  else if(d.cp){if(confirm("Tahsilat iptal edilsin mi?"))act(function(){return api("cancelPay",{no:d.cp})},"İptal edildi").then(function(r){if(r)return fresh().then(function(){return api("statement",{customerNo:S.cust})}).then(function(s){S.st=s;render()})})}
+  else if(el.id==="paybtn"){act(function(){return api("pay",{customerNo:S.cust,amount:$("pa").value,method:$("pm").value,note:$("pn").value})},"Tahsilat kaydedildi").then(function(r){if(r)return reCust()})}
+  else if(d.cp){if(confirm("Tahsilat iptal edilsin mi?"))act(function(){return api("cancelPay",{no:d.cp,customerNo:S.cust})},"İptal edildi").then(function(r){if(r)return reCust()})}
   else if(d.cs){if(confirm(d.cs+" satışı iptal edilsin mi? Stok geri yüklenecek."))act(function(){return api("cancelSale",{no:d.cs})},"Satış iptal edildi").then(function(r){if(r)return fresh().then(loadRec)})}
   else if(d.sin||d.sset){var id=d.sin||d.sset,v=$("sa"+id).value;if(v==="")return toast("Adet yazın",1);
     act(function(){return d.sin?api("stockIn",{id:id,qty:v}):api("setStock",{id:id,stock:v})},"Stok güncellendi").then(function(r){if(r)return fresh()})}
