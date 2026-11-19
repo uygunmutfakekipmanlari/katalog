@@ -26,6 +26,7 @@ button.g{background:#fff;color:var(--dark);border:1px solid #ccc}button.k{backgr
 #toast{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);background:var(--dark);color:#fff;padding:11px 18px;border-radius:10px;z-index:50;display:none;max-width:90%}#toast.err{background:#b00020}
 #login{max-width:340px;margin:12vh auto;padding:20px}
 .cl{width:70px}.th{width:44px;height:44px;object-fit:contain;background:#fff;border:1px solid var(--line);border-radius:6px;flex:none}.th.ph{display:flex;align-items:center;justify-content:center;font-size:20px;background:#f3f3f3}.xw{position:relative}.xw input{padding-right:38px}.xw .xb{position:absolute;right:4px;top:50%;transform:translateY(-50%);padding:4px 10px;font-size:18px;line-height:1}.tg{cursor:pointer;margin:0!important}.pr{width:95px}
+.srow{cursor:pointer}.sd{display:none;margin:0 0 8px;padding:8px 10px;background:#f6f6f6;border-radius:8px;font-size:13px}.sd div{display:flex;justify-content:space-between;gap:8px;padding:2px 0}.sd .t{border-top:1px solid #ddd;margin-top:4px;padding-top:4px;font-weight:600}.srow:hover .sd,.srow.open .sd{display:block}
 @media(max-width:560px){.g2,.g3{grid-template-columns:1fr}.row{flex-wrap:wrap}}
 </style></head><body>
 <div id="login" class="box"><h3>Satış Paneli</h3><p class="mut">PIN şifrenizi girin.</p>
@@ -50,6 +51,16 @@ function api(action,d){
 // Sunucu kayıttan sonra yalnız değişen veriyi gönderir; panel her şeyi yeniden yüklemez
 function applyU(u){if(u.products)S.P=u.products;if(u.customers)S.C=u.customers;if(u.suppliers)S.T=u.suppliers;if(u.summary)S.sum=u.summary;if(u.statement)S.st=u.statement;if(u.supStatement)S.ss=u.supStatement}
 function act(fn,okmsg){if(S.busy)return;S.busy=true;return fn().then(function(r){if(okmsg)toast(okmsg);return r}).catch(function(e){toast(e.message==="Failed to fetch"?"Bağlantı hatası, internetinizi ve adresi kontrol edin":e.message,1)}).then(function(r){S.busy=false;return r})}
+// Cari ekstresinde satış satırı: üzerine gelince (bilgisayar) ya da dokununca (telefon) kalemler açılır
+function saleRow(s){
+  var it=s.items||[],tot=0,d='';
+  it.forEach(function(x){tot+=x.g;d+='<div><span>'+esc(x.ad)+' <span class="mut">'+String(x.q).replace(".",",")+' adet × '+m(x.pr)+(x.kdv?' + KDV':'')+'</span></span><b>'+m(x.g)+'</b></div>'});
+  if(it.length){d+='<div class="t"><span>Satış toplamı (KDV dahil)</span><span>'+m(tot)+'</span></div>';
+    if(s.pay==='Karma')d+='<div><span class="mut">Açık hesaba yazılan</span><span>'+m(s.total)+'</span></div>';
+    if(s.note)d+='<div><span class="mut">Not: '+esc(s.note)+'</span></div>'}
+  else d='<span class="mut">Kalem bilgisi yok.</span>';
+  return'<div class="srow" data-sd="'+esc(s.no)+'"><div class="row"><div class="n">'+s.no+'<small>'+s.date+(it.length?' · '+it.length+' kalem':'')+'</small></div><span class="p">+ '+m(s.total)+'</span></div><div class="sd">'+d+'</div></div>'}
+$("view").addEventListener("click",function(e){var r=e.target.closest("[data-sd]");if(r&&!e.target.closest("button"))r.classList.toggle("open")});
 function load(){return api("init").then(function(d){S.P=d.products;S.C=d.customers;S.T=d.suppliers||[];S.O=d.orders||[];S.R=d.reminders||[];if(d.exp)S.E=d.exp;S.tg=d.tg||{};S.sum=d.summary;render()})}
 $("go").onclick=function(){S.pin=$("pin").value;if(SCRIPT_URL.indexOf("http")!==0)return toast("panel.html içine Apps Script adresi yazılmamış",1);
   act(function(){return load()}).then(function(){if(S.P.length){$("login").hidden=true;$("app").hidden=false;try{sessionStorage.setItem("pin",S.pin)}catch(e){}}})};
@@ -102,7 +113,7 @@ function vCust(){
   h+='<div class="box"><h3 class="tg" data-tg="c">'+(S.cOpen?"▾":"▸")+' Yeni cari ekle</h3>'+(S.cOpen?'<div class="g2" style="margin-top:10px"><input id="nn" placeholder="Ünvan *"><input id="nc" placeholder="Yetkili"><input id="np" placeholder="Telefon"><input id="nv" placeholder="Vergi no"></div><br><input id="nx" placeholder="Vergi dairesi"><br><br><button id="addc">Cariyi Kaydet</button>':"")+"</div>";
   if(c){h+='<div class="box"><h3>'+esc(c.ad)+'</h3><div class="mut">'+esc(c.tel||"")+" "+esc(c.yetkili||"")+'</div><div class="big" style="color:'+(c.bakiye>0?"#b00020":"inherit")+'">Bakiye: '+m(c.bakiye)+'</div><div class="mut">Bakiye = açık hesap satışlar − tahsilatlar</div><br>'+
    '<div class="g3"><input id="pa" type="number" min="0" step="any" placeholder="Tahsilat tutarı"><select id="pm"><option>Nakit</option><option>Kart</option><option>Havale</option><option>Çek</option></select><input id="pn" placeholder="Not"></div><br><button id="paybtn">Tahsilat Kaydet</button></div>';
-   if(S.st)h+='<div class="box"><h3>Ekstre</h3>'+(S.st.sales.map(function(s){return'<div class="row"><div class="n">'+s.no+"<small>"+s.date+'</small></div><span class="p">+ '+m(s.total)+"</span></div>"}).join("")+S.st.pays.map(function(q){return'<div class="row"><div class="n">'+q.no+" · "+esc(q.method)+"<small>"+q.date+" "+esc(q.note||"")+'</small></div><span class="p" style="color:#1b5e20">− '+m(q.amount)+'</span><button class="g" data-cp="'+q.no+'">İptal</button></div>'}).join("")||'<span class="mut">Hareket yok.</span>')+"</div>"}
+   if(S.st)h+='<div class="box"><h3>Ekstre</h3>'+(S.st.sales.map(saleRow).join("")+S.st.pays.map(function(q){return'<div class="row"><div class="n">'+q.no+" · "+esc(q.method)+"<small>"+q.date+" "+esc(q.note||"")+'</small></div><span class="p" style="color:#1b5e20">− '+m(q.amount)+'</span><button class="g" data-cp="'+q.no+'">İptal</button></div>'}).join("")||'<span class="mut">Hareket yok.</span>')+"</div>"}
   h+='<div class="box"><h3>Cari hesaplar</h3><input id="cq" placeholder="Cari ara..." value="'+esc(S.cq||"")+'"><div id="clist">'+custList()+"</div></div>";
   return h;
 }
