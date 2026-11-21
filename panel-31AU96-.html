@@ -57,9 +57,50 @@ function saleRow(s){
   it.forEach(function(x){tot+=x.g;d+='<div><span>'+esc(x.ad)+' <span class="mut">'+String(x.q).replace(".",",")+' adet × '+m(x.pr)+(x.kdv?' + KDV':'')+'</span></span><b>'+m(x.g)+'</b></div>'});
   if(it.length){d+='<div class="t"><span>Satış toplamı (KDV dahil)</span><span>'+m(tot)+'</span></div>';
     if(s.pay==='Karma')d+='<div><span class="mut">Açık hesaba yazılan</span><span>'+m(s.total)+'</span></div>';
-    if(s.note)d+='<div><span class="mut">Not: '+esc(s.note)+'</span></div>'}
+    if(s.note)d+='<div><span class="mut">Not: '+esc(s.note)+'</span></div>';
+    d+='<div style="justify-content:flex-end"><button class="g" data-simg="'+esc(s.no)+'">Görsel olarak paylaş</button></div>'}
   else d='<span class="mut">Kalem bilgisi yok.</span>';
   return'<div class="srow" data-sd="'+esc(s.no)+'"><div class="row"><div class="n">'+s.no+'<small>'+s.date+(it.length?' · '+it.length+' kalem':'')+'</small></div><span class="p">+ '+m(s.total)+'</span></div><div class="sd">'+d+'</div></div>'}
+// Satış kaydı görseli (PNG): cari satışını müşteriye / muhasebesine göndermek için. Tarayıcıda çizilir, sunucuya gitmez.
+function saleImg(no){
+  var s=(S.st&&S.st.sales||[]).filter(function(x){return x.no===no})[0];
+  if(!s||!s.items||!s.items.length)return toast("Bu satışın kalemleri bulunamadı",1);
+  var c=S.cust&&S.C.filter(function(x){return x.no===S.cust})[0],it=s.items,K=2,W=900,P=40,F="system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif";
+  var cv=document.createElement("canvas"),g=cv.getContext("2d");
+  function f(w,sz){g.font=w+" "+sz+"px "+F}
+  function n2(v){return (Number(v)||0).toLocaleString("tr-TR",{minimumFractionDigits:2,maximumFractionDigits:2})+" ₺"}
+  function qt(v){return String(v).replace(".",",")}
+  // Ürün adını sütuna sığacak satırlara böl
+  var cx={ad:P,q:500,pr:660,tu:W-P},adW=cx.q-cx.ad-60;
+  function wrap(t){f("400",22);var w=String(t).split(/\s+/),L=[],cur="";w.forEach(function(x){var tr=cur?cur+" "+x:x;if(g.measureText(tr).width>adW&&cur){L.push(cur);cur=x}else cur=tr});if(cur)L.push(cur);return L.length?L:[""]}
+  var rows=it.map(function(x){return{L:wrap(x.ad),q:x.q,pr:x.pr,ln:x.ln,kdv:x.kdv||0,g:x.g}}),net=0,kdv=0,gr=0;
+  rows.forEach(function(r){net+=r.ln;kdv+=r.kdv;gr+=r.g});
+  var hasK=kdv>0.004,rowH=function(r){return 18+r.L.length*28},H=P+60+40+(c?36:0)+36+30+56;
+  rows.forEach(function(r){H+=rowH(r)});H+=30+(hasK?3*38:38)+(s.pay==="Karma"?38:0)+(s.note?50:0)+70+P;
+  cv.width=W*K;cv.height=H*K;g.scale(K,K);g.fillStyle="#fff";g.fillRect(0,0,W,H);
+  var y=P;g.textBaseline="alphabetic";
+  g.fillStyle="#111";f("700",34);g.fillText("Uygun Mutfak Ekipmanları",P,y+34);y+=60;
+  f("600",24);g.fillStyle="#333";g.fillText("Satış kaydı · "+s.no,P,y+26);g.textAlign="right";f("400",22);g.fillText(String(s.date||""),W-P,y+26);g.textAlign="left";y+=40;
+  if(c){f("400",22);g.fillStyle="#333";g.fillText("Müşteri: "+c.ad,P,y+24);y+=36}
+  y+=12;g.fillStyle="#f1f3f5";g.fillRect(P-10,y,W-2*P+20,44);g.fillStyle="#333";f("700",20);
+  g.fillText("Ürün",cx.ad,y+29);g.textAlign="right";g.fillText("Adet",cx.q,y+29);g.fillText(hasK?"Birim fiyat (KDV hariç)":"Birim fiyat",cx.pr+90,y+29);g.fillText("Tutar",cx.tu,y+29);g.textAlign="left";y+=56;
+  rows.forEach(function(r){var h=rowH(r);f("400",22);g.fillStyle="#111";r.L.forEach(function(l,i){g.fillText(l,cx.ad,y+26+i*28)});
+    g.textAlign="right";g.fillText(qt(r.q),cx.q,y+26);g.fillText(n2(r.pr),cx.pr+90,y+26);g.fillText(n2(hasK?r.ln:r.g),cx.tu,y+26);g.textAlign="left";
+    y+=h;g.strokeStyle="#e3e3e3";g.lineWidth=1;g.beginPath();g.moveTo(P-10,y-6);g.lineTo(W-P+10,y-6);g.stroke()});
+  y+=24;var TX=330;
+  function tl(lab,val,b){f(b?"700":"400",b?24:22);g.fillStyle="#111";g.fillText(lab,TX,y+26);g.textAlign="right";g.fillText(val,W-P,y+26);g.textAlign="left";y+=38}
+  if(hasK){tl("Ara toplam (KDV hariç)",n2(net));tl("KDV",n2(kdv));tl("Genel toplam (KDV dahil)",n2(gr),1)}else tl("Toplam",n2(gr),1);
+  if(s.pay==="Karma"){f("400",22);g.fillStyle="#555";g.fillText("Açık hesaba yazılan",TX,y+26);g.textAlign="right";g.fillText(n2(s.total),W-P,y+26);g.textAlign="left";y+=38}
+  if(s.note){y+=12;f("400",20);g.fillStyle="#555";g.fillText("Not: "+String(s.note).slice(0,90),P,y+24);y+=38}
+  // Fazla boşluğu kırp
+  var Hc=Math.ceil(y+P),cv2=document.createElement("canvas");cv2.width=W*K;cv2.height=Hc*K;cv2.getContext("2d").drawImage(cv,0,0);cv=cv2;
+  var name="Satis-"+s.no+".png";
+  cv.toBlob(function(b){if(!b)return toast("Görsel oluşturulamadı",1);
+    var file=null;try{file=new File([b],name,{type:"image/png"})}catch(e){}
+    if(file&&navigator.canShare&&navigator.canShare({files:[file]})){navigator.share({files:[file],title:s.no}).catch(function(e){if(e&&e.name!=="AbortError")dl(b)})}else dl(b)},"image/png");
+  function dl(b){var u=URL.createObjectURL(b),l=document.createElement("a");l.href=u;l.download=name;document.body.appendChild(l);l.click();l.remove();setTimeout(function(){URL.revokeObjectURL(u)},4000);toast("Görsel indirildi")}
+}
+$("view").addEventListener("click",function(e){var b=e.target.closest("[data-simg]");if(b)saleImg(b.dataset.simg)});
 // Fatura Excel'i: QNB fatura satırı şablonuna satış kalemlerini yazar, tarayıcıda üretip indirir
 function zipLib(){if(window.JSZip)return Promise.resolve(window.JSZip);return new Promise(function(ok,no){var t=document.createElement("script");t.src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js";t.integrity="sha512-XMVd28F1oH/O71fzwBnV7HucLxVwtxf26XV8P4wPk26EDxuGZ91N8bsOttmnomcCD3CS5ZMRL50H0GgOHvegtg==";t.crossOrigin="anonymous";t.onload=function(){ok(window.JSZip)};t.onerror=function(){no(new Error("Excel aracı yüklenemedi, interneti kontrol edin"))};document.head.appendChild(t)})}
 function xe(v){return String(v).replace(/[\x00-\x08\x0B\x0C\x0E-\x1F]/g,"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;")}
