@@ -126,7 +126,9 @@ function vSale(){var c=calc();
   return h;
 }
 function custList(){
-  return S.C.filter(function(x){return !S.cq||fold(x.ad+" "+x.tel+" "+x.vergi).indexOf(fold(S.cq))>=0}).slice(0,50).map(function(x){return'<div class="row" data-c="'+x.no+'" style="cursor:pointer"><div class="n">'+esc(x.ad)+"<small>"+esc(x.tel||"")+'</small></div><span class="p" style="color:'+(x.bakiye>0?"#b00020":"inherit")+'">'+m(x.bakiye)+"</span></div>"}).join("")+(S.C.length?"":'<span class="mut">Henüz cari yok.</span>')}
+  // Borca göre sıralı; bakiyesi 0 olanlar yalnız aramada görünür
+  var L=S.C.filter(function(x){return S.cq?fold(x.ad+" "+x.tel+" "+x.vergi).indexOf(fold(S.cq))>=0:Math.abs(x.bakiye)>=0.005}).sort(function(a,b){return b.bakiye-a.bakiye}),z=S.cq?0:S.C.length-L.length;
+  return L.slice(0,S.cq?50:300).map(function(x){return'<div class="row" data-c="'+x.no+'" style="cursor:pointer"><div class="n">'+esc(x.ad)+"<small>"+esc(x.tel||"")+'</small></div><span class="p" style="color:'+(x.bakiye>0?"#b00020":"inherit")+'">'+m(x.bakiye)+"</span></div>"}).join("")+(S.C.length?(z?'<span class="mut">Bakiyesi 0 olan '+z+' cari gizli; adını aratınca görünür.</span>':""):'<span class="mut">Henüz cari yok.</span>')}
 function vCust(){
   var c=S.cust&&S.C.filter(function(x){return x.no===S.cust})[0],h="";
   h+='<div class="box"><h3 class="tg" data-tg="c">'+(S.cOpen?"▾":"▸")+' Yeni cari ekle</h3>'+(S.cOpen?'<div class="g2" style="margin-top:10px"><input id="nn" placeholder="Ünvan *"><input id="nc" placeholder="Yetkili"><input id="np" placeholder="Telefon"><input id="nv" placeholder="Vergi no"></div><br><input id="nx" placeholder="Vergi dairesi"><br><br><button id="addc">Cariyi Kaydet</button>':"")+"</div>";
