@@ -60,6 +60,25 @@ function saleRow(s){
     if(s.note)d+='<div><span class="mut">Not: '+esc(s.note)+'</span></div>'}
   else d='<span class="mut">Kalem bilgisi yok.</span>';
   return'<div class="srow" data-sd="'+esc(s.no)+'"><div class="row"><div class="n">'+s.no+'<small>'+s.date+(it.length?' · '+it.length+' kalem':'')+'</small></div><span class="p">+ '+m(s.total)+'</span></div><div class="sd">'+d+'</div></div>'}
+// Fatura Excel'i: QNB fatura satırı şablonuna satış kalemlerini yazar, tarayıcıda üretip indirir
+function zipLib(){if(window.JSZip)return Promise.resolve(window.JSZip);return new Promise(function(ok,no){var t=document.createElement("script");t.src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js";t.integrity="sha512-XMVd28F1oH/O71fzwBnV7HucLxVwtxf26XV8P4wPk26EDxuGZ91N8bsOttmnomcCD3CS5ZMRL50H0GgOHvegtg==";t.crossOrigin="anonymous";t.onload=function(){ok(window.JSZip)};t.onerror=function(){no(new Error("Excel aracı yüklenemedi, interneti kontrol edin"))};document.head.appendChild(t)})}
+function xe(v){return String(v).replace(/[\x00-\x08\x0B\x0C\x0E-\x1F]/g,"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;")}
+function fatXls(no){
+  var s=(S.rec||[]).filter(function(x){return x.no===no})[0];
+  if(!s||!s.items||!s.items.length)return toast("Bu satışın kalemleri bulunamadı",1);
+  var OK={0:1,1:1,8:1,9:1,10:1,18:1,20:1},warn="",rows=s.items.map(function(it,i){
+    var r=i+2,k=Math.round((Number(it.k)||0)*100)/100,kv=OK.hasOwnProperty(k)&&k===Math.round(k);
+    if(!kv)warn="Satışta KDV oranı karışık (%"+k+"); KDV Oranı sütunu boş bırakıldı";else if(k===0&&!warn)warn="Bu satış KDV'siz kaydedilmiş; KDV Oranı 0 yazıldı";
+    return'<row r="'+r+'" spans="1:24"><c r="B'+r+'" s="3" t="inlineStr"><is><t>'+xe(it.ad)+'</t></is></c><c r="C'+r+'" s="5"><v>'+Number(it.q)+'</v></c><c r="D'+r+'" s="3" t="inlineStr"><is><t>Adet (C62)</t></is></c><c r="E'+r+'" s="18"><v>'+Number(it.pr)+'</v></c>'+(kv?'<c r="G'+r+'" s="7"><v>'+k+'</v></c>':"")+"</row>"}).join("");
+  toast("Excel hazırlanıyor...");
+  Promise.all([zipLib(),fetch("fatura-sablon.xlsx").then(function(r){if(!r.ok)throw new Error("Şablon bulunamadı");return r.arrayBuffer()})]).then(function(a){return a[0].loadAsync(a[1],{createFolders:false})}).then(function(z){
+    var f="xl/worksheets/sheet1.xml";return z.file(f).async("string").then(function(x){
+      if(x.indexOf("</row></sheetData>")<0)throw new Error("Şablon beklenen biçimde değil");
+      x=x.replace("</row></sheetData>","</row>"+rows+"</sheetData>").replace('<dimension ref="A1:X1"/>','<dimension ref="A1:X'+(s.items.length+1)+'"/>');
+      z.file(f,x);return z.generateAsync({type:"blob",compression:"DEFLATE",mimeType:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"})})
+  }).then(function(b){var u=URL.createObjectURL(b),l=document.createElement("a");l.href=u;l.download="Fatura-"+no+".xlsx";document.body.appendChild(l);l.click();l.remove();setTimeout(function(){URL.revokeObjectURL(u)},4000);toast(warn||"Fatura Excel'i indirildi",!!warn)})
+  .catch(function(e){toast(e.message||"Excel oluşturulamadı",1)})}
+$("view").addEventListener("click",function(e){var b=e.target.closest("[data-fx]");if(b)fatXls(b.dataset.fx)});
 $("view").addEventListener("click",function(e){var r=e.target.closest("[data-sd]");if(r&&!e.target.closest("button"))r.classList.toggle("open")});
 function load(){return api("init").then(function(d){S.P=d.products;S.C=d.customers;S.T=d.suppliers||[];S.O=d.orders||[];S.R=d.reminders||[];if(d.exp)S.E=d.exp;S.tg=d.tg||{};S.sum=d.summary;render()})}
 $("go").onclick=function(){S.pin=$("pin").value;if(SCRIPT_URL.indexOf("http")!==0)return toast("panel.html içine Apps Script adresi yazılmamış",1);
@@ -180,7 +199,7 @@ function vRec(){
   var t=S.sum.today||{},mo=S.sum.month||{};
   var h='<div class="cards"><div><span class="mut">Bugün</span><div class="big">'+m(t.toplam)+'</div>'+(t.kdv?'<div class="mut">içinde KDV: '+m(t.kdv)+"</div>":"")+'</div><div><span class="mut">Bu ay</span><div class="big">'+m(mo.toplam)+'</div>'+(mo.kdv?'<div class="mut">içinde KDV: '+m(mo.kdv)+"</div>":"")+'</div>'+
    ["Nakit","Kart","Havale","Veresiye"].map(function(k){return'<div><span class="mut">Bu ay '+(k==="Veresiye"?"açık hesap":k)+"</span><div class=\"big\" style=\"font-size:17px\">"+m(mo[k])+"</div></div>"}).join("")+"</div>";
-  h+='<div class="box"><h3>Son satışlar</h3>'+(S.rec?S.rec.map(function(s){return'<div class="row"><div class="n">'+s.no+' · '+esc(s.cust||"Peşin")+'<small>'+s.date+" · "+esc(s.source)+" · "+esc(s.pay==="Karma"?"Karma ("+(s.det||"").replace(/Veresiye/g,"Açık hesap")+")":(s.pay==="Veresiye"?"Açık hesap":s.pay))+(s.kdv>0?" · KDV dahil":"")+(s.status!=="Aktif"?" · İPTAL":"")+'</small></div><span class="p"'+(s.status!=="Aktif"?' style="text-decoration:line-through"':"")+">"+m(s.total)+"</span>"+(s.status==="Aktif"?'<button class="g" data-cs="'+s.no+'">İptal</button>':"")+"</div>"}).join(""):'<span class="mut">Yükleniyor...</span>')+"</div>";
+  h+='<div class="box"><h3>Son satışlar</h3>'+(S.rec?S.rec.map(function(s){return'<div class="row"><div class="n">'+s.no+' · '+esc(s.cust||"Peşin")+'<small>'+s.date+" · "+esc(s.source)+" · "+esc(s.pay==="Karma"?"Karma ("+(s.det||"").replace(/Veresiye/g,"Açık hesap")+")":(s.pay==="Veresiye"?"Açık hesap":s.pay))+(s.kdv>0?" · KDV dahil":"")+(s.status!=="Aktif"?" · İPTAL":"")+'</small></div><span class="p"'+(s.status!=="Aktif"?' style="text-decoration:line-through"':"")+">"+m(s.total)+"</span>"+(s.status==="Aktif"?(s.items&&s.items.length?'<button class="g" data-fx="'+s.no+'">Fatura Excel</button>':"")+'<button class="g" data-cs="'+s.no+'">İptal</button>':"")+"</div>"}).join(""):'<span class="mut">Yükleniyor...</span>')+"</div>";
   return vLed()+h;
 }
 function reSup(){if(S._u){render();return Promise.resolve()}return load().then(function(){return api("supStatement",{supNo:S.sup})}).then(function(x){S.ss=x;render()})}
