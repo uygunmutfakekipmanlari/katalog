@@ -82,7 +82,7 @@ $("view").addEventListener("click",function(e){var b=e.target.closest("[data-fx]
 $("view").addEventListener("click",function(e){var r=e.target.closest("[data-sd]");if(r&&!e.target.closest("button"))r.classList.toggle("open")});
 function load(){return api("init").then(function(d){S.P=d.products;S.C=d.customers;S.T=d.suppliers||[];S.O=d.orders||[];S.R=d.reminders||[];if(d.exp)S.E=d.exp;S.tg=d.tg||{};S.sum=d.summary;render()})}
 $("go").onclick=function(){S.pin=$("pin").value;if(SCRIPT_URL.indexOf("http")!==0)return toast("panel.html içine Apps Script adresi yazılmamış",1);
-  act(function(){return load()}).then(function(){if(S.P.length){$("login").hidden=true;$("app").hidden=false;try{sessionStorage.setItem("pin",S.pin)}catch(e){}}})};
+  var lp=act(function(){return load()});if(lp)lp.then(function(){if(S.P.length){$("login").hidden=true;$("app").hidden=false;try{sessionStorage.setItem("pin",S.pin)}catch(e){}}})};
 $("pin").onkeydown=function(e){if(e.key==="Enter")$("go").click()};
 $("rf").onclick=function(){act(function(){return load()},"Yenilendi")};
 var TABS=[["sale","Satış"],["cust","Cari"],["sup","Tedarikçi"],["stock","Stok"],["ord","Sipariş"],["exp","Masraf"],["rec","Kayıtlar"]];
@@ -173,7 +173,8 @@ function vSup(){
    if(S.ss)h+='<div class="box"><h3>Ekstre</h3>'+(S.ss.buys.map(function(b){return'<div class="row"><div class="n">'+b.no+(b.inv?" · Fatura "+esc(b.inv):"")+"<small>"+b.date+" · "+esc(b.pay)+(b.status!=="Aktif"?" · İPTAL":"")+'</small></div><span class="p"'+(b.status!=="Aktif"?' style="text-decoration:line-through"':"")+'>+ '+m(b.total)+"</span>"+(b.status==="Aktif"?'<button class="g" data-cb="'+b.no+'">İptal</button>':"")+"</div>"}).join("")+S.ss.pays.map(function(q){return'<div class="row"><div class="n">'+q.no+" · "+esc(q.method)+"<small>"+q.date+" "+esc(q.note||"")+'</small></div><span class="p" style="color:#1b5e20">− '+m(q.amount)+"</span>"+(q.buy?"":'<button class="g" data-csp="'+q.no+'">İptal</button>')+"</div>"}).join("")||'<span class="mut">Hareket yok.</span>')+"</div>"}
   h+='<div class="box"><h3>Tedarikçiler</h3><input id="tq" placeholder="Tedarikçi ara..." value="'+esc(S.tq)+'"><div id="tlist">'+supList()+"</div></div>";
   return h}
-function loadRec(){return act(function(){return Promise.all([api("recent"),api("ledger",{ym:S.lm})])}).then(function(r){if(r){S.rec=r[0]||[];S.L=r[1];if(S.L)S.lm=S.L.ym}render()})}
+// Başka işlem sürerken basılırsa bekleyip yeniden dener (eskiden "Yükleniyor..."da takılıyordu)
+function loadRec(){if(S.busy)return new Promise(function(ok){setTimeout(ok,300)}).then(function(){if(S.tab==="rec")return loadRec()});return act(function(){return api("records",{ym:S.lm}).then(function(x){return[x.recent,x.ledger]},function(e){if(!/Bilinmeyen/.test(e.message))throw e;return Promise.all([api("recent"),api("ledger",{ym:S.lm})])})}).then(function(r){if(r){S.rec=r[0]||[];S.L=r[1];if(S.L)S.lm=S.L.ym}render()})}
 function ledList(){
   var L=S.L;if(!L)return"";var l=L.list.filter(function(e){return !S.lf||e.t===S.lf});
   if(!l.length)return'<p class="mut">Kayıt yok.</p>';
